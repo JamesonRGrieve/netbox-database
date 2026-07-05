@@ -22,7 +22,7 @@ class Migration(migrations.Migration):
     dependencies = [
         ("dcim", "0001_initial"),
         ("extras", "0001_initial"),
-        ("virtualization", "0001_initial"),
+        ("virtualization", "0001_virtualization"),
         # DatabaseServer.service_instance FKs netbox_services.ServiceInstance — its table must exist.
         ("netbox_services", "0001_initial"),
     ]
