@@ -13,7 +13,8 @@ from netbox_database.choices import (
 )
 from netbox_database.models import (
     Database, DatabaseGrant, DatabaseServer, DatabaseUser, GaleraCluster, GaleraNode,
-    MariaDBConfig, PostgresCluster, PostgresClusterNode, PostgresConfig,
+    MariaDBConfig, MongoDBConfig, MosquittoConfig, PostgresCluster, PostgresClusterNode,
+    PostgresConfig, RedisConfig,
 )
 
 
@@ -86,6 +87,72 @@ class ConfigModelTest(TestCase):
         self.assertIn("/plugins/database/postgres-configs/", c.get_absolute_url())
         with self.assertRaises(IntegrityError), transaction.atomic():
             PostgresConfig.objects.create(server=s)
+
+
+class NonSqlConfigModelTest(TestCase):
+    def test_mongodb_config_defaults_str_clean_and_one_per_server(self):
+        s = make_server("mongo", engine=DatabaseEngineChoices.MONGODB, version="7.0", port=27017)
+        c = MongoDBConfig.objects.create(server=s)
+        self.assertEqual(c.storage_engine, "wiredTiger")
+        self.assertEqual(c.get_storage_engine_color(), "green")
+        self.assertEqual(c.bind_ip, "0.0.0.0")
+        self.assertTrue(c.auth_enabled)
+        self.assertIsNone(c.cache_size_gb)  # NULL = engine default
+        c.clean()  # no raise — mongodb engine
+        self.assertEqual(str(c), f"MongoDB config: {s}")
+        self.assertIn("/plugins/database/mongodb-configs/", c.get_absolute_url())
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            MongoDBConfig.objects.create(server=s)
+
+    def test_mongodb_config_rejects_non_mongodb_server(self):
+        s = make_server("mongo-bad")  # mariadb
+        c = MongoDBConfig(server=s)
+        with self.assertRaises(ValidationError):
+            c.clean()
+
+    def test_redis_config_defaults_str_clean_and_one_per_server(self):
+        s = make_server("redis", engine=DatabaseEngineChoices.REDIS, version="7.2", port=6379)
+        c = RedisConfig.objects.create(server=s)
+        self.assertEqual(c.maxmemory_policy, "noeviction")
+        self.assertEqual(c.get_maxmemory_policy_color(), "gray")
+        self.assertEqual(c.databases, 16)
+        self.assertFalse(c.appendonly)
+        c.clean()  # no raise — redis engine
+        self.assertEqual(str(c), f"Redis config: {s}")
+        self.assertIn("/plugins/database/redis-configs/", c.get_absolute_url())
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            RedisConfig.objects.create(server=s)
+
+    def test_redis_config_accepts_valkey_server(self):
+        s = make_server("valkey", engine=DatabaseEngineChoices.VALKEY, version="8.0", port=6379)
+        c = RedisConfig(server=s, maxmemory="512mb")
+        c.clean()  # no raise — valkey is redis-family
+
+    def test_redis_config_rejects_non_redis_server(self):
+        s = make_server("redis-bad", engine=DatabaseEngineChoices.POSTGRESQL, version="16", port=5432)
+        c = RedisConfig(server=s)
+        with self.assertRaises(ValidationError):
+            c.clean()
+
+    def test_mosquitto_config_defaults_str_clean_and_one_per_server(self):
+        s = make_server("mqtt", engine=DatabaseEngineChoices.MOSQUITTO, version="2.0", port=1883)
+        c = MosquittoConfig.objects.create(server=s)
+        self.assertEqual(c.persistence, "file")
+        self.assertEqual(c.get_persistence_color(), "green")
+        self.assertEqual(c.max_connections, -1)
+        self.assertFalse(c.allow_anonymous)
+        self.assertFalse(c.tls_enabled)
+        c.clean()  # no raise — mosquitto engine
+        self.assertEqual(str(c), f"Mosquitto config: {s}")
+        self.assertIn("/plugins/database/mosquitto-configs/", c.get_absolute_url())
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            MosquittoConfig.objects.create(server=s)
+
+    def test_mosquitto_config_rejects_non_mosquitto_server(self):
+        s = make_server("mqtt-bad")  # mariadb
+        c = MosquittoConfig(server=s)
+        with self.assertRaises(ValidationError):
+            c.clean()
 
 
 class DatabaseObjectsModelTest(TestCase):

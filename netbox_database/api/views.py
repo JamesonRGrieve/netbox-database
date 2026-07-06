@@ -3,12 +3,14 @@ from netbox.api.viewsets import NetBoxModelViewSet
 from .. import filtersets
 from ..models import (
     Database, DatabaseGrant, DatabaseServer, DatabaseUser, GaleraCluster, GaleraNode,
-    MariaDBConfig, PostgresCluster, PostgresClusterNode, PostgresConfig,
+    MariaDBConfig, MongoDBConfig, MosquittoConfig, PostgresCluster, PostgresClusterNode,
+    PostgresConfig, RedisConfig,
 )
 from .serializers import (
     DatabaseGrantSerializer, DatabaseSerializer, DatabaseServerSerializer, DatabaseUserSerializer,
-    GaleraClusterSerializer, GaleraNodeSerializer, MariaDBConfigSerializer,
-    PostgresClusterNodeSerializer, PostgresClusterSerializer, PostgresConfigSerializer,
+    GaleraClusterSerializer, GaleraNodeSerializer, MariaDBConfigSerializer, MongoDBConfigSerializer,
+    MosquittoConfigSerializer, PostgresClusterNodeSerializer, PostgresClusterSerializer,
+    PostgresConfigSerializer, RedisConfigSerializer,
 )
 
 
@@ -28,6 +30,24 @@ class PostgresConfigViewSet(NetBoxModelViewSet):
     queryset = PostgresConfig.objects.prefetch_related("server", "tags")
     serializer_class = PostgresConfigSerializer
     filterset_class = filtersets.PostgresConfigFilterSet
+
+
+class MongoDBConfigViewSet(NetBoxModelViewSet):
+    queryset = MongoDBConfig.objects.prefetch_related("server", "tags")
+    serializer_class = MongoDBConfigSerializer
+    filterset_class = filtersets.MongoDBConfigFilterSet
+
+
+class RedisConfigViewSet(NetBoxModelViewSet):
+    queryset = RedisConfig.objects.prefetch_related("server", "tags")
+    serializer_class = RedisConfigSerializer
+    filterset_class = filtersets.RedisConfigFilterSet
+
+
+class MosquittoConfigViewSet(NetBoxModelViewSet):
+    queryset = MosquittoConfig.objects.prefetch_related("server", "tags")
+    serializer_class = MosquittoConfigSerializer
+    filterset_class = filtersets.MosquittoConfigFilterSet
 
 
 class DatabaseViewSet(NetBoxModelViewSet):

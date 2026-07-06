@@ -5,11 +5,14 @@ from django.db.models import Q
 from netbox.filtersets import NetBoxModelFilterSet
 from virtualization.models import VirtualMachine
 from .choices import (
-    DatabaseEngineChoices, GaleraSSTMethodChoices, PostgresHAModeChoices, PostgresRoleChoices,
+    DatabaseEngineChoices, GaleraSSTMethodChoices, MongoStorageEngineChoices,
+    MosquittoPersistenceChoices, PostgresHAModeChoices, PostgresRoleChoices,
+    RedisMaxmemoryPolicyChoices,
 )
 from .models import (
     Database, DatabaseGrant, DatabaseServer, DatabaseUser, GaleraCluster, GaleraNode,
-    MariaDBConfig, PostgresCluster, PostgresClusterNode, PostgresConfig,
+    MariaDBConfig, MongoDBConfig, MosquittoConfig, PostgresCluster, PostgresClusterNode,
+    PostgresConfig, RedisConfig,
 )
 
 # Explicit FK filters: django-filter does NOT derive `<fk>_id` from a bare FK in Meta.fields, so
@@ -64,6 +67,39 @@ class PostgresConfigFilterSet(_ServerFilterMixin):
         model = PostgresConfig
         fields = ["id", "shared_buffers", "effective_cache_size", "work_mem", "maintenance_work_mem",
                   "max_connections", "wal_init_zero", "wal_recycle", "password_encryption", "listen_addresses"]
+
+    def search(self, queryset, name, value):
+        return queryset.filter(Q(server__name__icontains=value))
+
+
+class MongoDBConfigFilterSet(_ServerFilterMixin):
+    storage_engine = django_filters.MultipleChoiceFilter(choices=MongoStorageEngineChoices)
+
+    class Meta:
+        model = MongoDBConfig
+        fields = ["id", "cache_size_gb", "repl_set_name", "bind_ip", "auth_enabled"]
+
+    def search(self, queryset, name, value):
+        return queryset.filter(Q(server__name__icontains=value) | Q(repl_set_name__icontains=value))
+
+
+class RedisConfigFilterSet(_ServerFilterMixin):
+    maxmemory_policy = django_filters.MultipleChoiceFilter(choices=RedisMaxmemoryPolicyChoices)
+
+    class Meta:
+        model = RedisConfig
+        fields = ["id", "maxmemory", "appendonly", "save_rule", "databases", "requirepass_ref"]
+
+    def search(self, queryset, name, value):
+        return queryset.filter(Q(server__name__icontains=value) | Q(maxmemory__icontains=value))
+
+
+class MosquittoConfigFilterSet(_ServerFilterMixin):
+    persistence = django_filters.MultipleChoiceFilter(choices=MosquittoPersistenceChoices)
+
+    class Meta:
+        model = MosquittoConfig
+        fields = ["id", "allow_anonymous", "max_connections", "password_file_ref", "tls_enabled"]
 
     def search(self, queryset, name, value):
         return queryset.filter(Q(server__name__icontains=value))

@@ -2,7 +2,7 @@
   "version": 1,
   "domain": "netbox.plugins.database",
   "title": "netbox-database plugin",
-  "description": "Native NetBox SoT for database server instances, tuned config, logical DB/user/grant objects, and engine-native HA (Galera; Patroni/repmgr/streaming). Composes netbox-services (FKs ServiceInstance; reuses HAMirror). Baseline scaffold + full spec is committed and py_compile-clean; the items below are the deep work owed against a live NetBox.",
+  "description": "Native NetBox SoT for data-engine server instances, tuned config, logical DB/user/grant objects, and engine-native HA (Galera; Patroni/repmgr/streaming). Covers SQL (MariaDB/MySQL, PostgreSQL) and non-SQL engines (MongoDB, Redis/Valkey, Mosquitto/MQTT), each with a per-server 1:1 config model. Composes netbox-services (FKs ServiceInstance; reuses HAMirror). Baseline scaffold + full spec is committed and py_compile-clean; the items below are the deep work owed against a live NetBox.",
   "hierarchy": { "parent": null, "children": [] },
   "phases": [
     {
@@ -13,14 +13,14 @@
         {
           "number": "1.1",
           "feature": "Migration parity check",
-          "description": "Run `python manage.py makemigrations netbox_database --check --dry-run` on an ephemeral NetBox 4.6; confirm the hand-authored 0001_initial matches the models (FK targets dcim.device / virtualization.virtualmachine / netbox_services.serviceinstance serialize, dependencies resolve).",
+          "description": "Run `python manage.py makemigrations netbox_database --check --dry-run` on an ephemeral NetBox 4.6; confirm the hand-authored 0001_initial + 0002_mongodb_redis_mosquitto_configs match the models (FK targets dcim.device / virtualization.virtualmachine / netbox_services.serviceinstance serialize, the three non-SQL config OneToOnes resolve, dependencies resolve).",
           "sot": "NB",
           "done": false
         },
         {
           "number": "1.2",
           "feature": "Full test run",
-          "description": "`python /opt/netbox/app/netbox/manage.py test netbox_database --keepdb -v2` green: models (clean() host-XOR + engine-family gates, uniqueness, cascade), api (CRUD mixins), filtersets.",
+          "description": "`python /opt/netbox/app/netbox/manage.py test netbox_database --keepdb -v2` green: models (clean() host-XOR + engine-family gates incl. mongodb/redis-valkey/mosquitto config gating, uniqueness, cascade), api (CRUD mixins for all config engines), filtersets.",
           "sot": "NB",
           "done": false
         },

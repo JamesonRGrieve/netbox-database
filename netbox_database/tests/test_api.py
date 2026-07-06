@@ -11,7 +11,8 @@ from netbox_database.choices import (
 )
 from netbox_database.models import (
     Database, DatabaseGrant, DatabaseServer, DatabaseUser, GaleraCluster, GaleraNode,
-    MariaDBConfig, PostgresCluster, PostgresClusterNode, PostgresConfig,
+    MariaDBConfig, MongoDBConfig, MosquittoConfig, PostgresCluster, PostgresClusterNode,
+    PostgresConfig, RedisConfig,
 )
 
 
@@ -79,6 +80,60 @@ class PostgresConfigAPITest(_CRUD):
             {"server": news[0].pk, "shared_buffers": "512MB", "max_connections": 100},
             {"server": news[1].pk, "wal_init_zero": False, "wal_recycle": False},
             {"server": news[2].pk, "password_encryption": "scram-sha-256", "listen_addresses": "*"},
+        ]
+
+
+class MongoDBConfigAPITest(_CRUD):
+    model = MongoDBConfig
+    brief_fields = ["display", "id", "server", "url"]
+    bulk_update_data = {"auth_enabled": False}
+
+    @classmethod
+    def setUpTestData(cls):
+        MongoDBConfig.objects.bulk_create([
+            MongoDBConfig(server=_server(f"mo-{i}", DatabaseEngineChoices.MONGODB, "7.0", 27017)) for i in range(3)
+        ])
+        news = [_server(f"mo-new-{i}", DatabaseEngineChoices.MONGODB, "7.0", 27017) for i in range(3)]
+        cls.create_data = [
+            {"server": news[0].pk, "storage_engine": "wiredTiger", "cache_size_gb": "2.50"},
+            {"server": news[1].pk, "storage_engine": "inMemory", "repl_set_name": "rs0"},
+            {"server": news[2].pk, "bind_ip": "0.0.0.0", "auth_enabled": False},
+        ]
+
+
+class RedisConfigAPITest(_CRUD):
+    model = RedisConfig
+    brief_fields = ["display", "id", "server", "url"]
+    bulk_update_data = {"databases": 8}
+
+    @classmethod
+    def setUpTestData(cls):
+        RedisConfig.objects.bulk_create([
+            RedisConfig(server=_server(f"re-{i}", DatabaseEngineChoices.REDIS, "7.2", 6379)) for i in range(3)
+        ])
+        news = [_server(f"re-new-{i}", DatabaseEngineChoices.VALKEY, "8.0", 6379) for i in range(3)]
+        cls.create_data = [
+            {"server": news[0].pk, "maxmemory": "512mb", "maxmemory_policy": "allkeys-lru"},
+            {"server": news[1].pk, "appendonly": True, "save_rule": "900 1 300 10"},
+            {"server": news[2].pk, "databases": 4, "requirepass_ref": "db/redis"},
+        ]
+
+
+class MosquittoConfigAPITest(_CRUD):
+    model = MosquittoConfig
+    brief_fields = ["display", "id", "server", "url"]
+    bulk_update_data = {"tls_enabled": True}
+
+    @classmethod
+    def setUpTestData(cls):
+        MosquittoConfig.objects.bulk_create([
+            MosquittoConfig(server=_server(f"mq-{i}", DatabaseEngineChoices.MOSQUITTO, "2.0", 1883)) for i in range(3)
+        ])
+        news = [_server(f"mq-new-{i}", DatabaseEngineChoices.MOSQUITTO, "2.0", 1883) for i in range(3)]
+        cls.create_data = [
+            {"server": news[0].pk, "persistence": "file", "max_connections": 1000},
+            {"server": news[1].pk, "persistence": "memory", "allow_anonymous": True},
+            {"server": news[2].pk, "tls_enabled": True, "password_file_ref": "db/mqtt"},
         ]
 
 

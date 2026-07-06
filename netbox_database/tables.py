@@ -3,7 +3,8 @@ import django_tables2 as tables
 from netbox.tables import NetBoxTable, columns
 from .models import (
     Database, DatabaseGrant, DatabaseServer, DatabaseUser, GaleraCluster, GaleraNode,
-    MariaDBConfig, PostgresCluster, PostgresClusterNode, PostgresConfig,
+    MariaDBConfig, MongoDBConfig, MosquittoConfig, PostgresCluster, PostgresClusterNode,
+    PostgresConfig, RedisConfig,
 )
 
 
@@ -46,6 +47,46 @@ class PostgresConfigTable(NetBoxTable):
         fields = ("pk", "id", "server", "shared_buffers", "effective_cache_size", "work_mem", "maintenance_work_mem",
                   "max_connections", "wal_init_zero", "wal_recycle", "password_encryption", "listen_addresses", "tags", "created", "last_updated")
         default_columns = ("server", "shared_buffers", "effective_cache_size", "max_connections")
+
+
+class MongoDBConfigTable(NetBoxTable):
+    server = tables.Column(linkify=True)
+    storage_engine = columns.ChoiceFieldColumn()
+    auth_enabled = columns.BooleanColumn()
+    tags = columns.TagColumn(url_name="plugins:netbox_database:mongodbconfig_list")
+
+    class Meta(NetBoxTable.Meta):
+        model = MongoDBConfig
+        fields = ("pk", "id", "server", "storage_engine", "cache_size_gb", "repl_set_name", "bind_ip",
+                  "auth_enabled", "tags", "created", "last_updated")
+        default_columns = ("server", "storage_engine", "cache_size_gb", "repl_set_name")
+
+
+class RedisConfigTable(NetBoxTable):
+    server = tables.Column(linkify=True)
+    maxmemory_policy = columns.ChoiceFieldColumn()
+    appendonly = columns.BooleanColumn()
+    tags = columns.TagColumn(url_name="plugins:netbox_database:redisconfig_list")
+
+    class Meta(NetBoxTable.Meta):
+        model = RedisConfig
+        fields = ("pk", "id", "server", "maxmemory", "maxmemory_policy", "appendonly", "save_rule",
+                  "databases", "requirepass_ref", "tags", "created", "last_updated")
+        default_columns = ("server", "maxmemory", "maxmemory_policy", "appendonly")
+
+
+class MosquittoConfigTable(NetBoxTable):
+    server = tables.Column(linkify=True)
+    persistence = columns.ChoiceFieldColumn()
+    allow_anonymous = columns.BooleanColumn()
+    tls_enabled = columns.BooleanColumn()
+    tags = columns.TagColumn(url_name="plugins:netbox_database:mosquittoconfig_list")
+
+    class Meta(NetBoxTable.Meta):
+        model = MosquittoConfig
+        fields = ("pk", "id", "server", "persistence", "allow_anonymous", "max_connections",
+                  "password_file_ref", "tls_enabled", "tags", "created", "last_updated")
+        default_columns = ("server", "persistence", "allow_anonymous", "tls_enabled")
 
 
 class DatabaseTable(NetBoxTable):

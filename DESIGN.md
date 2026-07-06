@@ -3,10 +3,12 @@
 
 ## 0. Purpose
 
-NetBox is the native source of truth for **database server instances and their configuration** —
-the data the `tofu-mariadb` / `tofu-postgres` providers read to stand up and reconcile a real
-database server. Table schema is explicitly **not** modeled: applications own their own tables via
-their own migrations. This plugin owns the *server*, not the *schema*.
+NetBox is the native source of truth for **data-engine server instances and their configuration** —
+the data the `tofu-mariadb` / `tofu-postgres` (and the non-SQL provider) reads to stand up and
+reconcile a real server. It spans the SQL engines (MariaDB/MySQL, PostgreSQL) and the non-SQL
+engines (MongoDB document store, Redis/Valkey key-value store, Mosquitto MQTT broker). Table schema
+is explicitly **not** modeled: applications own their own tables via their own migrations. This
+plugin owns the *server*, not the *schema*.
 
 Everything is a real typed column or a child row — no `config_context`, no CustomField data-blob
 (the workspace's retired anti-pattern). The tuned config surface maps 1:1 to the managed
@@ -33,6 +35,9 @@ each knob back losslessly.
                                                            └────► DatabaseGrant ◄──┘
                                                                   (user × database)
 
+   Non-SQL engine config (per-server 1:1, engine-gated by clean())
+     MongoDBConfig (mongodb) ─ RedisConfig (redis/valkey) ─ MosquittoConfig (mosquitto)
+
    MariaDB/MySQL HA (write-set)                 PostgreSQL HA (Patroni/repmgr/streaming)
    GaleraCluster ──< GaleraNode 1:1─ Server     PostgresCluster ──< PostgresClusterNode 1:1─ Server
 ```
@@ -48,6 +53,14 @@ each knob back losslessly.
   `wal_init_zero`/`wal_recycle`) are set only when `server.on_zfs` and are emitted into the managed
   config only on ZFS-backed data dirs — matching `install_mariadb_configure.yml` /
   `install_postgresql_configure.yml`.
+- **MongoDBConfig / RedisConfig / MosquittoConfig** are the non-SQL per-server 1:1 config surfaces,
+  each `clean()`-gated to its engine (`mongodb`; `redis`/`valkey`; `mosquitto`). `MongoDBConfig`
+  carries the `mongod.conf` knobs (storage engine, WiredTiger cache, replica-set name, bind IP,
+  auth). `RedisConfig` carries the `redis.conf` knobs (maxmemory + eviction policy, AOF/RDB
+  persistence, logical DB count) and a `requirepass_ref` OpenBao **path** — never the password.
+  `MosquittoConfig` carries the `mosquitto.conf` knobs (persistence backing, anonymous access,
+  connection cap, TLS) and a `password_file_ref` OpenBao **path**. The Redis/Mosquitto password
+  refs follow the same secret-ref policy as `DatabaseUser.credential_ref` (§4).
 - **Database / DatabaseUser / DatabaseGrant** are the logical objects, uniquely keyed per server.
 - **GaleraNode / PostgresClusterNode** are 1:1 to a server (a server participates in at most one
   cluster of its kind) and `clean()`-gated to the correct engine family.

@@ -78,6 +78,81 @@ class PostgresConfigBulkDeleteView(generic.BulkDeleteView):
     table = tables.PostgresConfigTable
 
 
+class MongoDBConfigView(generic.ObjectView):
+    queryset = models.MongoDBConfig.objects.all()
+
+
+class MongoDBConfigListView(generic.ObjectListView):
+    queryset = models.MongoDBConfig.objects.all()
+    table = tables.MongoDBConfigTable
+    filterset = filtersets.MongoDBConfigFilterSet
+    filterset_form = forms.MongoDBConfigFilterForm
+
+
+class MongoDBConfigEditView(generic.ObjectEditView):
+    queryset = models.MongoDBConfig.objects.all()
+    form = forms.MongoDBConfigForm
+
+
+class MongoDBConfigDeleteView(generic.ObjectDeleteView):
+    queryset = models.MongoDBConfig.objects.all()
+
+
+class MongoDBConfigBulkDeleteView(generic.BulkDeleteView):
+    queryset = models.MongoDBConfig.objects.all()
+    table = tables.MongoDBConfigTable
+
+
+class RedisConfigView(generic.ObjectView):
+    queryset = models.RedisConfig.objects.all()
+
+
+class RedisConfigListView(generic.ObjectListView):
+    queryset = models.RedisConfig.objects.all()
+    table = tables.RedisConfigTable
+    filterset = filtersets.RedisConfigFilterSet
+    filterset_form = forms.RedisConfigFilterForm
+
+
+class RedisConfigEditView(generic.ObjectEditView):
+    queryset = models.RedisConfig.objects.all()
+    form = forms.RedisConfigForm
+
+
+class RedisConfigDeleteView(generic.ObjectDeleteView):
+    queryset = models.RedisConfig.objects.all()
+
+
+class RedisConfigBulkDeleteView(generic.BulkDeleteView):
+    queryset = models.RedisConfig.objects.all()
+    table = tables.RedisConfigTable
+
+
+class MosquittoConfigView(generic.ObjectView):
+    queryset = models.MosquittoConfig.objects.all()
+
+
+class MosquittoConfigListView(generic.ObjectListView):
+    queryset = models.MosquittoConfig.objects.all()
+    table = tables.MosquittoConfigTable
+    filterset = filtersets.MosquittoConfigFilterSet
+    filterset_form = forms.MosquittoConfigFilterForm
+
+
+class MosquittoConfigEditView(generic.ObjectEditView):
+    queryset = models.MosquittoConfig.objects.all()
+    form = forms.MosquittoConfigForm
+
+
+class MosquittoConfigDeleteView(generic.ObjectDeleteView):
+    queryset = models.MosquittoConfig.objects.all()
+
+
+class MosquittoConfigBulkDeleteView(generic.BulkDeleteView):
+    queryset = models.MosquittoConfig.objects.all()
+    table = tables.MosquittoConfigTable
+
+
 class DatabaseView(generic.ObjectView):
     queryset = models.Database.objects.all()
 

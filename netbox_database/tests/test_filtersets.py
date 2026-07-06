@@ -3,16 +3,18 @@
 from django.test import TestCase
 from utilities.testing import create_test_device
 from netbox_database.choices import (
-    DatabaseEngineChoices, GaleraSSTMethodChoices, PostgresHAModeChoices, PostgresRoleChoices,
+    DatabaseEngineChoices, GaleraSSTMethodChoices, MongoStorageEngineChoices,
+    MosquittoPersistenceChoices, PostgresHAModeChoices, PostgresRoleChoices,
+    RedisMaxmemoryPolicyChoices,
 )
 from netbox_database.filtersets import (
     DatabaseFilterSet, DatabaseGrantFilterSet, DatabaseServerFilterSet, DatabaseUserFilterSet,
-    GaleraClusterFilterSet, GaleraNodeFilterSet, PostgresClusterFilterSet,
-    PostgresClusterNodeFilterSet,
+    GaleraClusterFilterSet, GaleraNodeFilterSet, MongoDBConfigFilterSet, MosquittoConfigFilterSet,
+    PostgresClusterFilterSet, PostgresClusterNodeFilterSet, RedisConfigFilterSet,
 )
 from netbox_database.models import (
     Database, DatabaseGrant, DatabaseServer, DatabaseUser, GaleraCluster, GaleraNode,
-    PostgresCluster, PostgresClusterNode,
+    MongoDBConfig, MosquittoConfig, PostgresCluster, PostgresClusterNode, RedisConfig,
 )
 
 
@@ -76,6 +78,53 @@ class DatabaseObjectsFilterSetTest(TestCase):
         self.assertEqual(DatabaseGrantFilterSet({"user_id": [u.pk]}, qs).qs.count(), 1)
         self.assertEqual(DatabaseGrantFilterSet({"database_id": [d.pk]}, qs).qs.count(), 1)
         self.assertEqual(DatabaseGrantFilterSet({"q": "ALL"}, qs).qs.count(), 1)
+
+
+class NonSqlConfigFilterSetTest(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.mo1 = _server("mo1", DatabaseEngineChoices.MONGODB, "7.0", 27017)
+        cls.mo2 = _server("mo2", DatabaseEngineChoices.MONGODB, "7.0", 27017)
+        MongoDBConfig.objects.bulk_create([
+            MongoDBConfig(server=cls.mo1, storage_engine=MongoStorageEngineChoices.WIREDTIGER, repl_set_name="rs0"),
+            MongoDBConfig(server=cls.mo2, storage_engine=MongoStorageEngineChoices.INMEMORY),
+        ])
+        cls.re1 = _server("re1", DatabaseEngineChoices.REDIS, "7.2", 6379)
+        cls.re2 = _server("re2", DatabaseEngineChoices.VALKEY, "8.0", 6379)
+        RedisConfig.objects.bulk_create([
+            RedisConfig(server=cls.re1, maxmemory="512mb", maxmemory_policy=RedisMaxmemoryPolicyChoices.ALLKEYS_LRU),
+            RedisConfig(server=cls.re2, maxmemory_policy=RedisMaxmemoryPolicyChoices.NOEVICTION),
+        ])
+        cls.mq1 = _server("mq1", DatabaseEngineChoices.MOSQUITTO, "2.0", 1883)
+        cls.mq2 = _server("mq2", DatabaseEngineChoices.MOSQUITTO, "2.0", 1883)
+        MosquittoConfig.objects.bulk_create([
+            MosquittoConfig(server=cls.mq1, persistence=MosquittoPersistenceChoices.FILE, tls_enabled=True),
+            MosquittoConfig(server=cls.mq2, persistence=MosquittoPersistenceChoices.MEMORY),
+        ])
+
+    def test_mongodb_server_scope_engine_and_search(self):
+        qs = MongoDBConfig.objects.all()
+        self.assertEqual(MongoDBConfigFilterSet({"server_id": [self.mo1.pk]}, qs).qs.count(), 1)
+        self.assertEqual(
+            MongoDBConfigFilterSet({"storage_engine": [MongoStorageEngineChoices.INMEMORY]}, qs).qs.count(), 1
+        )
+        self.assertEqual(MongoDBConfigFilterSet({"q": "rs0"}, qs).qs.count(), 1)
+
+    def test_redis_server_scope_policy_and_search(self):
+        qs = RedisConfig.objects.all()
+        self.assertEqual(RedisConfigFilterSet({"server_id": [self.re2.pk]}, qs).qs.count(), 1)
+        self.assertEqual(
+            RedisConfigFilterSet({"maxmemory_policy": [RedisMaxmemoryPolicyChoices.ALLKEYS_LRU]}, qs).qs.count(), 1
+        )
+        self.assertEqual(RedisConfigFilterSet({"q": "512mb"}, qs).qs.count(), 1)
+
+    def test_mosquitto_server_scope_persistence_and_search(self):
+        qs = MosquittoConfig.objects.all()
+        self.assertEqual(MosquittoConfigFilterSet({"server_id": [self.mq1.pk]}, qs).qs.count(), 1)
+        self.assertEqual(
+            MosquittoConfigFilterSet({"persistence": [MosquittoPersistenceChoices.MEMORY]}, qs).qs.count(), 1
+        )
+        self.assertEqual(MosquittoConfigFilterSet({"q": "mq1"}, qs).qs.count(), 1)
 
 
 class GaleraFilterSetTest(TestCase):

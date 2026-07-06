@@ -64,9 +64,9 @@ NetBox holds the structure; OpenBao holds the secret.
 | File | Responsibility |
 |------|----------------|
 | `__init__.py` | `PluginConfig` — name `netbox_database`, `base_url='database'`, min/max 4.6, `required_plugins=["netbox_services"]` |
-| `choices.py` | `ChoiceSet`s: `DatabaseEngineChoices`, `GaleraSSTMethodChoices`, `PostgresHAModeChoices`, `PostgresRoleChoices` |
-| `models.py` | the 10 models below (with `clean()` host/engine rules) |
-| `migrations/0001_initial.py` | hand-authored (NetBox disables makemigrations in prod); verify with `makemigrations --check --dry-run`; deps: dcim, extras, virtualization, netbox_services |
+| `choices.py` | `ChoiceSet`s: `DatabaseEngineChoices` (SQL + mongodb/redis/valkey/mosquitto), `GaleraSSTMethodChoices`, `PostgresHAModeChoices`, `PostgresRoleChoices`, `MongoStorageEngineChoices`, `RedisMaxmemoryPolicyChoices`, `MosquittoPersistenceChoices` |
+| `models.py` | the 13 models below (with `clean()` host/engine rules) |
+| `migrations/0001_initial.py`, `migrations/0002_mongodb_redis_mosquitto_configs.py` | hand-authored (NetBox disables makemigrations in prod); verify with `makemigrations --check --dry-run`; 0001 deps: dcim, extras, virtualization, netbox_services; 0002 (MongoDB/Redis/Mosquitto configs) deps: netbox_database 0001 |
 | `api/serializers.py`, `api/views.py`, `api/urls.py` | REST (`NetBoxModelViewSet`, `NetBoxRouter`) — the contract the providers + seeder read; nests dcim/virtualization/netbox_services serializers |
 | `filtersets.py` | `NetBoxModelFilterSet` per model (explicit `<fk>_id` + `search()`) |
 | `tables.py`, `forms.py`, `navigation.py`, `views.py`, `urls.py` | UI (generic NetBox views; `_routes()` helper; PluginMenu groups Servers / Databases / Users & Grants / HA Clusters) |
@@ -81,6 +81,13 @@ NetBox holds the structure; OpenBao holds the secret.
   - **PostgresConfig** (1:1): nullable `postgresql.conf` — shared_buffers, caches/work mem,
     max_connections, ZFS `wal_init_zero`/`wal_recycle`, `password_encryption` (scram-sha-256),
     `listen_addresses`.
+  - **MongoDBConfig** (1:1, `mongodb` `clean()`): `mongod.conf` — `storage_engine`
+    (wiredTiger/inMemory), `cache_size_gb` (nullable), `repl_set_name`, `bind_ip`, `auth_enabled`.
+  - **RedisConfig** (1:1, `redis`/`valkey` `clean()`): `redis.conf` — `maxmemory`,
+    `maxmemory_policy`, `appendonly`, `save_rule`, `databases`, `requirepass_ref` (OpenBao path).
+  - **MosquittoConfig** (1:1, `mosquitto` `clean()`): `mosquitto.conf` — `persistence`
+    (file/memory), `allow_anonymous`, `max_connections` (-1 = unlimited), `password_file_ref`
+    (OpenBao path), `tls_enabled`.
 - **Database** (FK server): `name`·`owner`·`charset`·`collation`; unique `(server, name)`.
 - **DatabaseUser** (FK server): `username`·`host_scope`·`credential_ref` (OpenBao path); unique
   `(server, username, host_scope)`.

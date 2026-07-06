@@ -6,11 +6,14 @@ from utilities.forms.fields import DynamicModelChoiceField, DynamicModelMultiple
 from utilities.forms.rendering import FieldSet
 from virtualization.models import VirtualMachine
 from .choices import (
-    DatabaseEngineChoices, GaleraSSTMethodChoices, PostgresHAModeChoices, PostgresRoleChoices,
+    DatabaseEngineChoices, GaleraSSTMethodChoices, MongoStorageEngineChoices,
+    MosquittoPersistenceChoices, PostgresHAModeChoices, PostgresRoleChoices,
+    RedisMaxmemoryPolicyChoices,
 )
 from .models import (
     Database, DatabaseGrant, DatabaseServer, DatabaseUser, GaleraCluster, GaleraNode,
-    MariaDBConfig, PostgresCluster, PostgresClusterNode, PostgresConfig,
+    MariaDBConfig, MongoDBConfig, MosquittoConfig, PostgresCluster, PostgresClusterNode,
+    PostgresConfig, RedisConfig,
 )
 
 
@@ -58,6 +61,48 @@ class PostgresConfigForm(NetBoxModelForm):
         model = PostgresConfig
         fields = ["server", "shared_buffers", "effective_cache_size", "work_mem", "maintenance_work_mem",
                   "max_connections", "wal_init_zero", "wal_recycle", "password_encryption", "listen_addresses", "tags"]
+
+
+class MongoDBConfigForm(NetBoxModelForm):
+    server = DynamicModelChoiceField(queryset=DatabaseServer.objects.all())
+
+    fieldsets = (
+        FieldSet("server", "storage_engine", "cache_size_gb", "bind_ip", name="MongoDB"),
+        FieldSet("repl_set_name", "auth_enabled", name="Replica / auth"),
+    )
+
+    class Meta:
+        model = MongoDBConfig
+        fields = ["server", "storage_engine", "cache_size_gb", "repl_set_name", "bind_ip",
+                  "auth_enabled", "tags"]
+
+
+class RedisConfigForm(NetBoxModelForm):
+    server = DynamicModelChoiceField(queryset=DatabaseServer.objects.all())
+
+    fieldsets = (
+        FieldSet("server", "maxmemory", "maxmemory_policy", "databases", name="Redis / Valkey"),
+        FieldSet("appendonly", "save_rule", "requirepass_ref", name="Persistence / auth"),
+    )
+
+    class Meta:
+        model = RedisConfig
+        fields = ["server", "maxmemory", "maxmemory_policy", "appendonly", "save_rule", "databases",
+                  "requirepass_ref", "tags"]
+
+
+class MosquittoConfigForm(NetBoxModelForm):
+    server = DynamicModelChoiceField(queryset=DatabaseServer.objects.all())
+
+    fieldsets = (
+        FieldSet("server", "persistence", "max_connections", name="Mosquitto"),
+        FieldSet("allow_anonymous", "password_file_ref", "tls_enabled", name="Auth / TLS"),
+    )
+
+    class Meta:
+        model = MosquittoConfig
+        fields = ["server", "persistence", "allow_anonymous", "max_connections", "password_file_ref",
+                  "tls_enabled", "tags"]
 
 
 class DatabaseForm(NetBoxModelForm):
@@ -150,6 +195,31 @@ class PostgresConfigFilterForm(NetBoxModelFilterSetForm):
     model = PostgresConfig
     server_id = DynamicModelMultipleChoiceField(queryset=DatabaseServer.objects.all(), required=False, label="Server")
     tag = TagFilterField(PostgresConfig)
+
+
+class MongoDBConfigFilterForm(NetBoxModelFilterSetForm):
+    model = MongoDBConfig
+    server_id = DynamicModelMultipleChoiceField(queryset=DatabaseServer.objects.all(), required=False, label="Server")
+    storage_engine = forms.MultipleChoiceField(choices=MongoStorageEngineChoices, required=False)
+    auth_enabled = forms.NullBooleanField(required=False)
+    tag = TagFilterField(MongoDBConfig)
+
+
+class RedisConfigFilterForm(NetBoxModelFilterSetForm):
+    model = RedisConfig
+    server_id = DynamicModelMultipleChoiceField(queryset=DatabaseServer.objects.all(), required=False, label="Server")
+    maxmemory_policy = forms.MultipleChoiceField(choices=RedisMaxmemoryPolicyChoices, required=False)
+    appendonly = forms.NullBooleanField(required=False)
+    tag = TagFilterField(RedisConfig)
+
+
+class MosquittoConfigFilterForm(NetBoxModelFilterSetForm):
+    model = MosquittoConfig
+    server_id = DynamicModelMultipleChoiceField(queryset=DatabaseServer.objects.all(), required=False, label="Server")
+    persistence = forms.MultipleChoiceField(choices=MosquittoPersistenceChoices, required=False)
+    allow_anonymous = forms.NullBooleanField(required=False)
+    tls_enabled = forms.NullBooleanField(required=False)
+    tag = TagFilterField(MosquittoConfig)
 
 
 class DatabaseFilterForm(NetBoxModelFilterSetForm):

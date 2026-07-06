@@ -21,11 +21,15 @@ from django.db import models
 from django.urls import reverse
 from netbox.models import NetBoxModel
 from .choices import (
-    DatabaseEngineChoices, GaleraSSTMethodChoices, PostgresHAModeChoices, PostgresRoleChoices,
+    DatabaseEngineChoices, GaleraSSTMethodChoices, MongoStorageEngineChoices,
+    MosquittoPersistenceChoices, PostgresHAModeChoices, PostgresRoleChoices,
+    RedisMaxmemoryPolicyChoices,
 )
 
 # Engines that share the MySQL wire protocol + my.cnf surface (MariaDBConfig, Galera).
 MYSQL_FAMILY_ENGINES = (DatabaseEngineChoices.MARIADB, DatabaseEngineChoices.MYSQL)
+# Engines that share the Redis wire protocol + redis.conf surface (RedisConfig).
+REDIS_FAMILY_ENGINES = (DatabaseEngineChoices.REDIS, DatabaseEngineChoices.VALKEY)
 
 
 class DatabaseServer(NetBoxModel):
@@ -151,6 +155,135 @@ class PostgresConfig(NetBoxModel):
 
     def get_absolute_url(self):
         return reverse("plugins:netbox_database:postgresconfig", args=[self.pk])
+
+
+class MongoDBConfig(NetBoxModel):
+    """Per-server MongoDB tuning (the managed ``mongod.conf`` surface). Nullable sizing fields mean
+    "let the engine default apply" when NULL. ``clean()`` gates the server to the ``mongodb`` engine.
+    ``repl_set_name`` names the replica set (blank = standalone)."""
+
+    server = models.OneToOneField(
+        DatabaseServer, on_delete=models.CASCADE, related_name="mongodb_config"
+    )
+    storage_engine = models.CharField(
+        max_length=16, choices=MongoStorageEngineChoices, default=MongoStorageEngineChoices.WIREDTIGER
+    )
+    cache_size_gb = models.DecimalField(
+        max_digits=6, decimal_places=2, null=True, blank=True,
+        help_text="WiredTiger cache size in GB (NULL = engine default).",
+    )
+    repl_set_name = models.CharField(
+        max_length=100, blank=True, help_text="Replica set name (blank = standalone)."
+    )
+    bind_ip = models.CharField(
+        max_length=255, default="0.0.0.0", help_text="net.bindIp bind address."
+    )
+    auth_enabled = models.BooleanField(
+        default=True, help_text="security.authorization enabled (SCRAM auth)."
+    )
+
+    class Meta:
+        ordering = ["server"]
+        verbose_name = "MongoDB Config"
+
+    def __str__(self):
+        return f"MongoDB config: {self.server}"
+
+    def get_absolute_url(self):
+        return reverse("plugins:netbox_database:mongodbconfig", args=[self.pk])
+
+    def get_storage_engine_color(self):
+        return MongoStorageEngineChoices.colors.get(self.storage_engine)
+
+    def clean(self):
+        super().clean()
+        if self.server_id and self.server.engine != DatabaseEngineChoices.MONGODB:
+            raise ValidationError("A MongoDB config requires a MongoDB server engine.")
+
+
+class RedisConfig(NetBoxModel):
+    """Per-server Redis/Valkey tuning (the managed ``redis.conf`` surface). ``clean()`` gates the
+    server to the ``redis``/``valkey`` engines. ``requirepass_ref`` is an OpenBao PATH — never the
+    password value (the netbox-services secret-ref convention)."""
+
+    server = models.OneToOneField(
+        DatabaseServer, on_delete=models.CASCADE, related_name="redis_config"
+    )
+    maxmemory = models.CharField(
+        max_length=32, blank=True, help_text="maxmemory cap (e.g. 512mb); blank = no limit."
+    )
+    maxmemory_policy = models.CharField(
+        max_length=16, choices=RedisMaxmemoryPolicyChoices,
+        default=RedisMaxmemoryPolicyChoices.NOEVICTION,
+    )
+    appendonly = models.BooleanField(default=False, help_text="AOF persistence enabled.")
+    save_rule = models.CharField(
+        max_length=255, blank=True, help_text="RDB save points (e.g. '900 1 300 10')."
+    )
+    databases = models.PositiveIntegerField(default=16, help_text="Number of logical DBs.")
+    requirepass_ref = models.CharField(
+        max_length=255, blank=True, help_text="OpenBao path for requirepass — NEVER the secret."
+    )
+
+    class Meta:
+        ordering = ["server"]
+        verbose_name = "Redis Config"
+
+    def __str__(self):
+        return f"Redis config: {self.server}"
+
+    def get_absolute_url(self):
+        return reverse("plugins:netbox_database:redisconfig", args=[self.pk])
+
+    def get_maxmemory_policy_color(self):
+        return RedisMaxmemoryPolicyChoices.colors.get(self.maxmemory_policy)
+
+    def clean(self):
+        super().clean()
+        if self.server_id and self.server.engine not in REDIS_FAMILY_ENGINES:
+            raise ValidationError("A Redis config requires a Redis or Valkey server engine.")
+
+
+class MosquittoConfig(NetBoxModel):
+    """Per-server Mosquitto (MQTT broker) tuning (the managed ``mosquitto.conf`` surface).
+    ``clean()`` gates the server to the ``mosquitto`` engine. ``password_file_ref`` is an OpenBao
+    PATH — never the password-file contents. ``max_connections`` of ``-1`` = unlimited (broker
+    default)."""
+
+    server = models.OneToOneField(
+        DatabaseServer, on_delete=models.CASCADE, related_name="mosquitto_config"
+    )
+    persistence = models.CharField(
+        max_length=16, choices=MosquittoPersistenceChoices, default=MosquittoPersistenceChoices.FILE
+    )
+    allow_anonymous = models.BooleanField(
+        default=False, help_text="Accept unauthenticated clients."
+    )
+    max_connections = models.IntegerField(
+        default=-1, help_text="Concurrent client cap (-1 = unlimited)."
+    )
+    password_file_ref = models.CharField(
+        max_length=255, blank=True, help_text="OpenBao path for the password file — NEVER the secret."
+    )
+    tls_enabled = models.BooleanField(default=False, help_text="TLS listener enabled.")
+
+    class Meta:
+        ordering = ["server"]
+        verbose_name = "Mosquitto Config"
+
+    def __str__(self):
+        return f"Mosquitto config: {self.server}"
+
+    def get_absolute_url(self):
+        return reverse("plugins:netbox_database:mosquittoconfig", args=[self.pk])
+
+    def get_persistence_color(self):
+        return MosquittoPersistenceChoices.colors.get(self.persistence)
+
+    def clean(self):
+        super().clean()
+        if self.server_id and self.server.engine != DatabaseEngineChoices.MOSQUITTO:
+            raise ValidationError("A Mosquitto config requires a Mosquitto server engine.")
 
 
 class Database(NetBoxModel):

@@ -5,15 +5,61 @@ from utilities.choices import ChoiceSet
 
 
 class DatabaseEngineChoices(ChoiceSet):
-    """Relational engine the server runs. ``mariadb``/``mysql`` share the MySQL wire protocol and
-    the my.cnf surface (:class:`MariaDBConfig`); ``postgresql`` has its own (:class:`PostgresConfig`)."""
+    """Data engine the server runs. ``mariadb``/``mysql`` share the MySQL wire protocol and the
+    my.cnf surface (:class:`MariaDBConfig`); ``postgresql`` has its own (:class:`PostgresConfig`).
+    The non-SQL engines each own a config surface too: ``mongodb`` (:class:`MongoDBConfig`),
+    ``redis``/``valkey`` (:class:`RedisConfig`), ``mosquitto`` (:class:`MosquittoConfig`)."""
     MARIADB = "mariadb"
     MYSQL = "mysql"
     POSTGRESQL = "postgresql"
+    MONGODB = "mongodb"
+    REDIS = "redis"
+    VALKEY = "valkey"
+    MOSQUITTO = "mosquitto"
     CHOICES = [
         (MARIADB, "MariaDB", "blue"),
         (MYSQL, "MySQL", "orange"),
         (POSTGRESQL, "PostgreSQL", "indigo"),
+        (MONGODB, "MongoDB", "green"),
+        (REDIS, "Redis", "red"),
+        (VALKEY, "Valkey", "teal"),
+        (MOSQUITTO, "Mosquitto (MQTT)", "purple"),
+    ]
+
+
+class MongoStorageEngineChoices(ChoiceSet):
+    """MongoDB storage engine — ``wiredTiger`` (default, on-disk) or ``inMemory``."""
+    WIREDTIGER = "wiredTiger"
+    INMEMORY = "inMemory"
+    CHOICES = [
+        (WIREDTIGER, "WiredTiger", "green"),
+        (INMEMORY, "In-Memory", "orange"),
+    ]
+
+
+class RedisMaxmemoryPolicyChoices(ChoiceSet):
+    """Redis/Valkey key-eviction policy applied when ``maxmemory`` is reached."""
+    NOEVICTION = "noeviction"
+    ALLKEYS_LRU = "allkeys-lru"
+    ALLKEYS_LFU = "allkeys-lfu"
+    VOLATILE_LRU = "volatile-lru"
+    VOLATILE_TTL = "volatile-ttl"
+    CHOICES = [
+        (NOEVICTION, "noeviction", "gray"),
+        (ALLKEYS_LRU, "allkeys-lru", "blue"),
+        (ALLKEYS_LFU, "allkeys-lfu", "cyan"),
+        (VOLATILE_LRU, "volatile-lru", "orange"),
+        (VOLATILE_TTL, "volatile-ttl", "yellow"),
+    ]
+
+
+class MosquittoPersistenceChoices(ChoiceSet):
+    """Mosquitto message persistence backing — ``file`` (durable) or ``memory``."""
+    FILE = "file"
+    MEMORY = "memory"
+    CHOICES = [
+        (FILE, "File", "green"),
+        (MEMORY, "Memory", "orange"),
     ]
 
 

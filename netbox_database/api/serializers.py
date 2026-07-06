@@ -6,7 +6,8 @@ from rest_framework import serializers
 from virtualization.api.serializers import VirtualMachineSerializer
 from ..models import (
     Database, DatabaseGrant, DatabaseServer, DatabaseUser, GaleraCluster, GaleraNode,
-    MariaDBConfig, PostgresCluster, PostgresClusterNode, PostgresConfig,
+    MariaDBConfig, MongoDBConfig, MosquittoConfig, PostgresCluster, PostgresClusterNode,
+    PostgresConfig, RedisConfig,
 )
 
 
@@ -50,6 +51,45 @@ class PostgresConfigSerializer(NetBoxModelSerializer):
             "id", "url", "display", "server", "shared_buffers", "effective_cache_size", "work_mem",
             "maintenance_work_mem", "max_connections", "wal_init_zero", "wal_recycle",
             "password_encryption", "listen_addresses", "tags", "custom_fields", "created", "last_updated",
+        ]
+        brief_fields = ["id", "url", "display", "server"]
+
+
+class MongoDBConfigSerializer(NetBoxModelSerializer):
+    url = serializers.HyperlinkedIdentityField(view_name="plugins-api:netbox_database-api:mongodbconfig-detail")
+    server = DatabaseServerSerializer(nested=True)
+
+    class Meta:
+        model = MongoDBConfig
+        fields = [
+            "id", "url", "display", "server", "storage_engine", "cache_size_gb", "repl_set_name",
+            "bind_ip", "auth_enabled", "tags", "custom_fields", "created", "last_updated",
+        ]
+        brief_fields = ["id", "url", "display", "server"]
+
+
+class RedisConfigSerializer(NetBoxModelSerializer):
+    url = serializers.HyperlinkedIdentityField(view_name="plugins-api:netbox_database-api:redisconfig-detail")
+    server = DatabaseServerSerializer(nested=True)
+
+    class Meta:
+        model = RedisConfig
+        fields = [
+            "id", "url", "display", "server", "maxmemory", "maxmemory_policy", "appendonly",
+            "save_rule", "databases", "requirepass_ref", "tags", "custom_fields", "created", "last_updated",
+        ]
+        brief_fields = ["id", "url", "display", "server"]
+
+
+class MosquittoConfigSerializer(NetBoxModelSerializer):
+    url = serializers.HyperlinkedIdentityField(view_name="plugins-api:netbox_database-api:mosquittoconfig-detail")
+    server = DatabaseServerSerializer(nested=True)
+
+    class Meta:
+        model = MosquittoConfig
+        fields = [
+            "id", "url", "display", "server", "persistence", "allow_anonymous", "max_connections",
+            "password_file_ref", "tls_enabled", "tags", "custom_fields", "created", "last_updated",
         ]
         brief_fields = ["id", "url", "display", "server"]
 
