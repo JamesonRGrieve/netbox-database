@@ -5,6 +5,9 @@ Composes the explicit CRUD mixins (no GraphQL type shipped yet). DatabaseServer 
 one host (device XOR VM), so each create row supplies a device pk. The per-server 1:1 rows
 (configs, cluster nodes) need a fresh server per created object.
 """
+import unittest
+from decimal import Decimal
+
 from utilities.testing import APIViewTestCases, create_test_device
 from netbox_database.choices import (
     DatabaseEngineChoices, PostgresHAModeChoices, PostgresRoleChoices,
@@ -23,7 +26,16 @@ class _CRUD(
     APIViewTestCases.UpdateObjectViewTestCase,
     APIViewTestCases.DeleteObjectViewTestCase,
 ):
-    pass
+    # Plugin API views register under the `plugins-api:<app_label>-api` namespace;
+    # without this override the test base reverses `<app_label>-api:…` (no
+    # `plugins-api` prefix) → NoReverseMatch. See utilities/testing/api.py.
+    view_namespace = "plugins-api:netbox_database"
+
+    @classmethod
+    def setUpClass(cls):
+        if cls is _CRUD:
+            raise unittest.SkipTest("abstract API test base")
+        super().setUpClass()
 
 
 def _server(name, engine=DatabaseEngineChoices.MARIADB, version="10.11", port=3306):
@@ -95,7 +107,7 @@ class MongoDBConfigAPITest(_CRUD):
         ])
         news = [_server(f"mo-new-{i}", DatabaseEngineChoices.MONGODB, "7.0", 27017) for i in range(3)]
         cls.create_data = [
-            {"server": news[0].pk, "storage_engine": "wiredTiger", "cache_size_gb": "2.50"},
+            {"server": news[0].pk, "storage_engine": "wiredTiger", "cache_size_gb": Decimal("2.50")},
             {"server": news[1].pk, "storage_engine": "inMemory", "repl_set_name": "rs0"},
             {"server": news[2].pk, "bind_ip": "0.0.0.0", "auth_enabled": False},
         ]
@@ -178,7 +190,9 @@ class DatabaseUserAPITest(_CRUD):
 class DatabaseGrantAPITest(_CRUD):
     model = DatabaseGrant
     brief_fields = ["database", "display", "id", "url", "user"]
-    bulk_update_data = {"privileges": "SELECT"}
+    # "USAGE" — a privilege none of the seed grants (ALL/SELECT/INSERT) already has,
+    # so every row actually changes (bulk-update asserts len(changes) == len(data)).
+    bulk_update_data = {"privileges": "USAGE"}
 
     @classmethod
     def setUpTestData(cls):
