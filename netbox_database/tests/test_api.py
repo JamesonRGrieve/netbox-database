@@ -290,7 +290,9 @@ class PostgresClusterNodeAPITest(_CRUD):
 class MariaDBReplicationAPITest(_CRUD):
     model = MariaDBReplication
     brief_fields = ["display", "id", "name", "topology", "url"]
-    bulk_update_data = {"sync_mode": "semi-sync"}
+    # ssl defaults False on every fixture below, so a bulk update to True changes all of them
+    # (a value one fixture already holds would be a no-op there → fewer change records than rows).
+    bulk_update_data = {"ssl": True}
 
     @classmethod
     def setUpTestData(cls):
