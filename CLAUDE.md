@@ -65,7 +65,7 @@ NetBox holds the structure; OpenBao holds the secret.
 |------|----------------|
 | `__init__.py` | `PluginConfig` — name `netbox_database`, `base_url='database'`, min/max 4.6, `required_plugins=["netbox_services"]` |
 | `choices.py` | `ChoiceSet`s: `DatabaseEngineChoices` (SQL + mongodb/redis/valkey/mosquitto), `GaleraSSTMethodChoices`, `PostgresHAModeChoices`, `PostgresRoleChoices`, `MongoStorageEngineChoices`, `RedisMaxmemoryPolicyChoices`, `MosquittoPersistenceChoices` |
-| `models.py` | the 13 models below (with `clean()` host/engine rules) |
+| `models.py` | the 15 models below (with `clean()` host/engine rules) |
 | `migrations/0001_initial.py`, `migrations/0002_mongodb_redis_mosquitto_configs.py` | hand-authored (NetBox disables makemigrations in prod); verify with `makemigrations --check --dry-run`; 0001 deps: dcim, extras, virtualization, netbox_services; 0002 (MongoDB/Redis/Mosquitto configs) deps: netbox_database 0001 |
 | `api/serializers.py`, `api/views.py`, `api/urls.py` | REST (`NetBoxModelViewSet`, `NetBoxRouter`) — the contract the providers + seeder read; nests dcim/virtualization/netbox_services serializers |
 | `filtersets.py` | `NetBoxModelFilterSet` per model (explicit `<fk>_id` + `search()`) |
@@ -94,6 +94,11 @@ NetBox holds the structure; OpenBao holds the secret.
 - **DatabaseGrant** (FK user + database): `privileges`; unique `(user, database)`.
 - **GaleraCluster** / **GaleraNode** (1:1 server, MySQL-family `clean()`): Galera write-set HA.
 - **PostgresCluster** / **PostgresClusterNode** (1:1 server, PostgreSQL `clean()`): Postgres HA.
+- **MariaDBReplication** / **MariaDBReplicationNode** (1:1 server, MySQL-family `clean()`): MariaDB/MySQL
+  binlog replication — `topology` master-master|master-slave, `sync_mode` async|semi-sync, `gtid`,
+  `ssl`; each node carries its `mariadb_server_id` (unique per group), `role`, `read_only`. This is
+  the async/semi-sync replication Galera (synchronous write-set) and `HAMirror` (service-level
+  pairing) do not express.
 
 ---
 

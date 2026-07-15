@@ -40,6 +40,9 @@ each knob back losslessly.
 
    MariaDB/MySQL HA (write-set)                 PostgreSQL HA (Patroni/repmgr/streaming)
    GaleraCluster ──< GaleraNode 1:1─ Server     PostgresCluster ──< PostgresClusterNode 1:1─ Server
+
+   MariaDB/MySQL HA (binlog replication)
+   MariaDBReplication ──< MariaDBReplicationNode 1:1─ Server
 ```
 
 - **DatabaseServer** is the anchor. Host is exactly one of `dcim.Device` (raw-OS install) or
@@ -82,11 +85,14 @@ each knob back losslessly.
 
    What `HAMirror` **cannot** express is the *database-native clustering topology*: Galera
    write-set synchronous replication (SST method, per-node `wsrep_node_address`, segments,
-   bootstrap election) and PostgreSQL streaming replication (primary/replica/witness roles,
-   replication slots, synchronous standby set, the Patroni DCS). Those are engine-internal and
-   live here as `GaleraCluster`/`GaleraNode` and `PostgresCluster`/`PostgresClusterNode`. The two
-   are **complementary**: `HAMirror` is the app-tier fail-over relationship; the cluster models are
-   the storage-tier replication mechanism.
+   bootstrap election); MariaDB/MySQL async/semi-sync binlog replication (master-master vs
+   master-slave, per-node `server_id`, GTID, read-only replicas — the mechanism behind the
+   `mariadb_master_master` `ha_strategy`); and PostgreSQL streaming replication (primary/replica/
+   witness roles, replication slots, synchronous standby set, the Patroni DCS). Those are
+   engine-internal and live here as `GaleraCluster`/`GaleraNode`, `MariaDBReplication`/
+   `MariaDBReplicationNode`, and `PostgresCluster`/`PostgresClusterNode`. The two layers are
+   **complementary**: `HAMirror` is the app-tier fail-over relationship; the cluster models are the
+   storage-tier replication mechanism.
 
 ## 3. HA topology
 
@@ -95,6 +101,14 @@ each knob back losslessly.
   `cluster_address`. Each member is a `GaleraNode` (1:1 to a MySQL-family `DatabaseServer`) with a
   `node_address`, an `is_bootstrap` flag (the node that starts the cluster), and a `segment`
   (WAN-optimized grouping). `clean()` rejects a non-MySQL-family server.
+- **MariaDB/MySQL → binlog replication.** Async or semi-sync primary→replica replication, the
+  lighter alternative to Galera (and the storage-tier mechanism a `mariadb_master_master`
+  `HAMirror` names). A `MariaDBReplication` fixes the `topology` (`master-master` for a bidirectional
+  writable pair, or `master-slave` for one-way), the `sync_mode` (`async`/`semi-sync`), and the
+  `gtid`/`ssl` toggles. Each member is a `MariaDBReplicationNode` (1:1 to a MySQL-family
+  `DatabaseServer`) with its `mariadb_server_id` (unique within the group), a `role`
+  (`source`/`replica`/`co-primary`), and a `read_only` flag. `clean()` rejects a non-MySQL-family
+  server. This is what a client-HA mirror pair (house replica ⇄ primary) is modeled as.
 - **PostgreSQL → Patroni / repmgr / streaming.** A `PostgresCluster` picks the orchestration
   `ha_mode`, an optional `dcs_reference` (etcd/consul for Patroni), and a `synchronous` toggle.
   Each member is a `PostgresClusterNode` (1:1 to a PostgreSQL `DatabaseServer`) with a `role`

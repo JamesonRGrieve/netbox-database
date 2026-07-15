@@ -3,8 +3,8 @@ import django_tables2 as tables
 from netbox.tables import NetBoxTable, columns
 from .models import (
     Database, DatabaseGrant, DatabaseServer, DatabaseUser, GaleraCluster, GaleraNode,
-    MariaDBConfig, MongoDBConfig, MosquittoConfig, PostgresCluster, PostgresClusterNode,
-    PostgresConfig, RedisConfig,
+    MariaDBConfig, MariaDBReplication, MariaDBReplicationNode, MongoDBConfig, MosquittoConfig,
+    PostgresCluster, PostgresClusterNode, PostgresConfig, RedisConfig,
 )
 
 
@@ -168,3 +168,30 @@ class PostgresClusterNodeTable(NetBoxTable):
         model = PostgresClusterNode
         fields = ("pk", "id", "cluster", "server", "role", "replication_slot", "is_synchronous_standby", "tags", "created", "last_updated")
         default_columns = ("cluster", "server", "role", "is_synchronous_standby")
+
+
+class MariaDBReplicationTable(NetBoxTable):
+    name = tables.Column(linkify=True)
+    topology = columns.ChoiceFieldColumn()
+    sync_mode = columns.ChoiceFieldColumn()
+    gtid = columns.BooleanColumn()
+    ssl = columns.BooleanColumn()
+    tags = columns.TagColumn(url_name="plugins:netbox_database:mariadbreplication_list")
+
+    class Meta(NetBoxTable.Meta):
+        model = MariaDBReplication
+        fields = ("pk", "id", "name", "topology", "sync_mode", "gtid", "ssl", "tags", "created", "last_updated")
+        default_columns = ("name", "topology", "sync_mode", "gtid")
+
+
+class MariaDBReplicationNodeTable(NetBoxTable):
+    replication = tables.Column(linkify=True)
+    server = tables.Column(linkify=True)
+    role = columns.ChoiceFieldColumn()
+    read_only = columns.BooleanColumn()
+    tags = columns.TagColumn(url_name="plugins:netbox_database:mariadbreplicationnode_list")
+
+    class Meta(NetBoxTable.Meta):
+        model = MariaDBReplicationNode
+        fields = ("pk", "id", "replication", "server", "mariadb_server_id", "role", "read_only", "tags", "created", "last_updated")
+        default_columns = ("replication", "server", "mariadb_server_id", "role", "read_only")

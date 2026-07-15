@@ -14,8 +14,8 @@ from netbox_database.choices import (
 )
 from netbox_database.models import (
     Database, DatabaseGrant, DatabaseServer, DatabaseUser, GaleraCluster, GaleraNode,
-    MariaDBConfig, MongoDBConfig, MosquittoConfig, PostgresCluster, PostgresClusterNode,
-    PostgresConfig, RedisConfig,
+    MariaDBConfig, MariaDBReplication, MariaDBReplicationNode, MongoDBConfig, MosquittoConfig,
+    PostgresCluster, PostgresClusterNode, PostgresConfig, RedisConfig,
 )
 
 
@@ -284,4 +284,43 @@ class PostgresClusterNodeAPITest(_CRUD):
             {"cluster": cluster.pk, "server": news[0].pk, "role": "primary"},
             {"cluster": cluster.pk, "server": news[1].pk, "role": "replica", "replication_slot": "slot1"},
             {"cluster": cluster.pk, "server": news[2].pk, "role": "witness", "is_synchronous_standby": True},
+        ]
+
+
+class MariaDBReplicationAPITest(_CRUD):
+    model = MariaDBReplication
+    brief_fields = ["display", "id", "name", "topology", "url"]
+    bulk_update_data = {"sync_mode": "semi-sync"}
+
+    @classmethod
+    def setUpTestData(cls):
+        MariaDBReplication.objects.bulk_create([
+            MariaDBReplication(name="mr-a", topology="master-master"),
+            MariaDBReplication(name="mr-b", topology="master-slave", sync_mode="semi-sync"),
+            MariaDBReplication(name="mr-c", topology="master-master"),
+        ])
+        cls.create_data = [
+            {"name": "mk1", "topology": "master-master"},
+            {"name": "mk2", "topology": "master-slave", "sync_mode": "semi-sync", "gtid": False},
+            {"name": "mk3", "topology": "master-master", "ssl": True},
+        ]
+
+
+class MariaDBReplicationNodeAPITest(_CRUD):
+    model = MariaDBReplicationNode
+    brief_fields = ["display", "id", "replication", "role", "server", "url"]
+    bulk_update_data = {"read_only": True}
+
+    @classmethod
+    def setUpTestData(cls):
+        repl = MariaDBReplication.objects.create(name="mn-repl", topology="master-master")
+        MariaDBReplicationNode.objects.bulk_create([
+            MariaDBReplicationNode(replication=repl, server=_server(f"mn-{i}"), mariadb_server_id=i + 1, role="co-primary")
+            for i in range(3)
+        ])
+        news = [_server(f"mn-new-{i}") for i in range(3)]
+        cls.create_data = [
+            {"replication": repl.pk, "server": news[0].pk, "mariadb_server_id": 11, "role": "co-primary"},
+            {"replication": repl.pk, "server": news[1].pk, "mariadb_server_id": 12, "role": "replica", "read_only": True},
+            {"replication": repl.pk, "server": news[2].pk, "mariadb_server_id": 13, "role": "source"},
         ]

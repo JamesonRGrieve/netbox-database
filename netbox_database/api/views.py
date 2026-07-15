@@ -3,12 +3,14 @@ from netbox.api.viewsets import NetBoxModelViewSet
 from .. import filtersets
 from ..models import (
     Database, DatabaseGrant, DatabaseServer, DatabaseUser, GaleraCluster, GaleraNode,
-    MariaDBConfig, MongoDBConfig, MosquittoConfig, PostgresCluster, PostgresClusterNode,
+    MariaDBConfig, MariaDBReplication, MariaDBReplicationNode, MongoDBConfig, MosquittoConfig,
+    PostgresCluster, PostgresClusterNode,
     PostgresConfig, RedisConfig,
 )
 from .serializers import (
     DatabaseGrantSerializer, DatabaseSerializer, DatabaseServerSerializer, DatabaseUserSerializer,
-    GaleraClusterSerializer, GaleraNodeSerializer, MariaDBConfigSerializer, MongoDBConfigSerializer,
+    GaleraClusterSerializer, GaleraNodeSerializer, MariaDBConfigSerializer,
+    MariaDBReplicationNodeSerializer, MariaDBReplicationSerializer, MongoDBConfigSerializer,
     MosquittoConfigSerializer, PostgresClusterNodeSerializer, PostgresClusterSerializer,
     PostgresConfigSerializer, RedisConfigSerializer,
 )
@@ -90,3 +92,15 @@ class PostgresClusterNodeViewSet(NetBoxModelViewSet):
     queryset = PostgresClusterNode.objects.prefetch_related("cluster", "server", "tags")
     serializer_class = PostgresClusterNodeSerializer
     filterset_class = filtersets.PostgresClusterNodeFilterSet
+
+
+class MariaDBReplicationViewSet(NetBoxModelViewSet):
+    queryset = MariaDBReplication.objects.prefetch_related("tags")
+    serializer_class = MariaDBReplicationSerializer
+    filterset_class = filtersets.MariaDBReplicationFilterSet
+
+
+class MariaDBReplicationNodeViewSet(NetBoxModelViewSet):
+    queryset = MariaDBReplicationNode.objects.prefetch_related("replication", "server", "tags")
+    serializer_class = MariaDBReplicationNodeSerializer
+    filterset_class = filtersets.MariaDBReplicationNodeFilterSet

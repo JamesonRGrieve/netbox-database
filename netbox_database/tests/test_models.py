@@ -9,12 +9,14 @@ from django.db.utils import IntegrityError
 from django.test import TestCase
 from utilities.testing import create_test_device, create_test_virtualmachine
 from netbox_database.choices import (
-    DatabaseEngineChoices, GaleraSSTMethodChoices, PostgresHAModeChoices, PostgresRoleChoices,
+    DatabaseEngineChoices, GaleraSSTMethodChoices, MariaDBReplicationRoleChoices,
+    MariaDBReplicationSyncChoices, MariaDBReplicationTopologyChoices, PostgresHAModeChoices,
+    PostgresRoleChoices,
 )
 from netbox_database.models import (
     Database, DatabaseGrant, DatabaseServer, DatabaseUser, GaleraCluster, GaleraNode,
-    MariaDBConfig, MongoDBConfig, MosquittoConfig, PostgresCluster, PostgresClusterNode,
-    PostgresConfig, RedisConfig,
+    MariaDBConfig, MariaDBReplication, MariaDBReplicationNode, MongoDBConfig, MosquittoConfig,
+    PostgresCluster, PostgresClusterNode, PostgresConfig, RedisConfig,
 )
 
 
@@ -261,3 +263,60 @@ class PostgresClusterModelTest(TestCase):
         n = PostgresClusterNode(cluster=c, server=s, role=PostgresRoleChoices.REPLICA)
         with self.assertRaises(ValidationError):
             n.clean()
+
+
+class MariaDBReplicationModelTest(TestCase):
+    def test_group_defaults_str_colors_and_unique(self):
+        r = MariaDBReplication.objects.create(name="repl-a", topology=MariaDBReplicationTopologyChoices.MASTER_MASTER)
+        self.assertEqual(r.sync_mode, MariaDBReplicationSyncChoices.ASYNC)
+        self.assertTrue(r.gtid)
+        self.assertFalse(r.ssl)
+        self.assertEqual(str(r), "repl-a")
+        self.assertEqual(r.get_topology_color(), "green")
+        self.assertEqual(r.get_sync_mode_color(), "gray")
+        self.assertIn("/plugins/database/mariadb-replications/", r.get_absolute_url())
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            MariaDBReplication.objects.create(name="repl-a", topology=MariaDBReplicationTopologyChoices.MASTER_SLAVE)
+
+    def test_node_on_mysql_family_str_color_and_url(self):
+        r = MariaDBReplication.objects.create(name="repl-b", topology=MariaDBReplicationTopologyChoices.MASTER_MASTER)
+        s = make_server("rnode", engine=DatabaseEngineChoices.MYSQL, version="8.0")
+        n = MariaDBReplicationNode.objects.create(
+            replication=r, server=s, mariadb_server_id=1, role=MariaDBReplicationRoleChoices.CO_PRIMARY
+        )
+        n.clean()  # no raise — mysql family
+        self.assertEqual(str(n), "repl-b: rnode (co-primary)")
+        self.assertEqual(n.get_role_color(), "purple")
+        self.assertFalse(n.read_only)
+        self.assertIn("/plugins/database/mariadb-replication-nodes/", n.get_absolute_url())
+
+    def test_node_rejects_postgres_server(self):
+        r = MariaDBReplication.objects.create(name="repl-c", topology=MariaDBReplicationTopologyChoices.MASTER_SLAVE)
+        s = make_server("rpg", engine=DatabaseEngineChoices.POSTGRESQL, version="16", port=5432)
+        n = MariaDBReplicationNode(
+            replication=r, server=s, mariadb_server_id=2, role=MariaDBReplicationRoleChoices.REPLICA
+        )
+        with self.assertRaises(ValidationError):
+            n.clean()
+
+    def test_node_one_per_server(self):
+        r = MariaDBReplication.objects.create(name="repl-d", topology=MariaDBReplicationTopologyChoices.MASTER_MASTER)
+        s = make_server("rone")
+        MariaDBReplicationNode.objects.create(
+            replication=r, server=s, mariadb_server_id=1, role=MariaDBReplicationRoleChoices.CO_PRIMARY
+        )
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            MariaDBReplicationNode.objects.create(
+                replication=r, server=s, mariadb_server_id=2, role=MariaDBReplicationRoleChoices.REPLICA
+            )
+
+    def test_server_id_unique_within_group(self):
+        r = MariaDBReplication.objects.create(name="repl-e", topology=MariaDBReplicationTopologyChoices.MASTER_MASTER)
+        s1, s2 = make_server("re1"), make_server("re2")
+        MariaDBReplicationNode.objects.create(
+            replication=r, server=s1, mariadb_server_id=1, role=MariaDBReplicationRoleChoices.CO_PRIMARY
+        )
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            MariaDBReplicationNode.objects.create(
+                replication=r, server=s2, mariadb_server_id=1, role=MariaDBReplicationRoleChoices.CO_PRIMARY
+            )

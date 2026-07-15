@@ -5,14 +5,15 @@ from django.db.models import Q
 from netbox.filtersets import NetBoxModelFilterSet
 from virtualization.models import VirtualMachine
 from .choices import (
-    DatabaseEngineChoices, GaleraSSTMethodChoices, MongoStorageEngineChoices,
+    DatabaseEngineChoices, GaleraSSTMethodChoices, MariaDBReplicationRoleChoices,
+    MariaDBReplicationSyncChoices, MariaDBReplicationTopologyChoices, MongoStorageEngineChoices,
     MosquittoPersistenceChoices, PostgresHAModeChoices, PostgresRoleChoices,
     RedisMaxmemoryPolicyChoices,
 )
 from .models import (
     Database, DatabaseGrant, DatabaseServer, DatabaseUser, GaleraCluster, GaleraNode,
-    MariaDBConfig, MongoDBConfig, MosquittoConfig, PostgresCluster, PostgresClusterNode,
-    PostgresConfig, RedisConfig,
+    MariaDBConfig, MariaDBReplication, MariaDBReplicationNode, MongoDBConfig, MosquittoConfig,
+    PostgresCluster, PostgresClusterNode, PostgresConfig, RedisConfig,
 )
 
 # Explicit FK filters: django-filter does NOT derive `<fk>_id` from a bare FK in Meta.fields, so
@@ -199,4 +200,32 @@ class PostgresClusterNodeFilterSet(_ServerFilterMixin):
         return queryset.filter(
             Q(cluster__name__icontains=value) | Q(server__name__icontains=value)
             | Q(replication_slot__icontains=value)
+        )
+
+
+class MariaDBReplicationFilterSet(NetBoxModelFilterSet):
+    topology = django_filters.MultipleChoiceFilter(choices=MariaDBReplicationTopologyChoices)
+    sync_mode = django_filters.MultipleChoiceFilter(choices=MariaDBReplicationSyncChoices)
+
+    class Meta:
+        model = MariaDBReplication
+        fields = ["id", "name", "gtid", "ssl"]
+
+    def search(self, queryset, name, value):
+        return queryset.filter(Q(name__icontains=value))
+
+
+class MariaDBReplicationNodeFilterSet(_ServerFilterMixin):
+    replication_id = django_filters.ModelMultipleChoiceFilter(
+        field_name="replication", queryset=MariaDBReplication.objects.all(), label="Replication (ID)"
+    )
+    role = django_filters.MultipleChoiceFilter(choices=MariaDBReplicationRoleChoices)
+
+    class Meta:
+        model = MariaDBReplicationNode
+        fields = ["id", "mariadb_server_id", "read_only"]
+
+    def search(self, queryset, name, value):
+        return queryset.filter(
+            Q(replication__name__icontains=value) | Q(server__name__icontains=value)
         )

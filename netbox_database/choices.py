@@ -97,3 +97,39 @@ class PostgresRoleChoices(ChoiceSet):
         (REPLICA, "Replica", "blue"),
         (WITNESS, "Witness", "gray"),
     ]
+
+
+class MariaDBReplicationTopologyChoices(ChoiceSet):
+    """MariaDB/MySQL binlog-replication topology a group runs — one-way ``master-slave`` or
+    bidirectional ``master-master`` (each node a source for the other). This is the async/semi-sync
+    binlog replication Galera (synchronous write-set) does not cover."""
+    MASTER_SLAVE = "master-slave"
+    MASTER_MASTER = "master-master"
+    CHOICES = [
+        (MASTER_SLAVE, "Master-Slave", "blue"),
+        (MASTER_MASTER, "Master-Master", "green"),
+    ]
+
+
+class MariaDBReplicationSyncChoices(ChoiceSet):
+    """Durability of a MariaDB replication group — ``async`` (default binlog) or ``semi-sync``
+    (the primary waits for a replica to ack the event via ``rpl_semi_sync``)."""
+    ASYNC = "async"
+    SEMI_SYNC = "semi-sync"
+    CHOICES = [
+        (ASYNC, "Asynchronous", "gray"),
+        (SEMI_SYNC, "Semi-synchronous", "green"),
+    ]
+
+
+class MariaDBReplicationRoleChoices(ChoiceSet):
+    """Role a server holds in a MariaDB replication group. ``co-primary`` is a writable node in a
+    master-master pair (source and replica at once); ``source``/``replica`` are the one-way roles."""
+    SOURCE = "source"
+    REPLICA = "replica"
+    CO_PRIMARY = "co-primary"
+    CHOICES = [
+        (SOURCE, "Source", "green"),
+        (REPLICA, "Replica", "blue"),
+        (CO_PRIMARY, "Co-primary", "purple"),
+    ]

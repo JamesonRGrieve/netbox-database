@@ -326,3 +326,53 @@ class PostgresClusterNodeDeleteView(generic.ObjectDeleteView):
 class PostgresClusterNodeBulkDeleteView(generic.BulkDeleteView):
     queryset = models.PostgresClusterNode.objects.all()
     table = tables.PostgresClusterNodeTable
+
+
+class MariaDBReplicationView(generic.ObjectView):
+    queryset = models.MariaDBReplication.objects.all()
+
+
+class MariaDBReplicationListView(generic.ObjectListView):
+    queryset = models.MariaDBReplication.objects.all()
+    table = tables.MariaDBReplicationTable
+    filterset = filtersets.MariaDBReplicationFilterSet
+    filterset_form = forms.MariaDBReplicationFilterForm
+
+
+class MariaDBReplicationEditView(generic.ObjectEditView):
+    queryset = models.MariaDBReplication.objects.all()
+    form = forms.MariaDBReplicationForm
+
+
+class MariaDBReplicationDeleteView(generic.ObjectDeleteView):
+    queryset = models.MariaDBReplication.objects.all()
+
+
+class MariaDBReplicationBulkDeleteView(generic.BulkDeleteView):
+    queryset = models.MariaDBReplication.objects.all()
+    table = tables.MariaDBReplicationTable
+
+
+class MariaDBReplicationNodeView(generic.ObjectView):
+    queryset = models.MariaDBReplicationNode.objects.all()
+
+
+class MariaDBReplicationNodeListView(generic.ObjectListView):
+    queryset = models.MariaDBReplicationNode.objects.all()
+    table = tables.MariaDBReplicationNodeTable
+    filterset = filtersets.MariaDBReplicationNodeFilterSet
+    filterset_form = forms.MariaDBReplicationNodeFilterForm
+
+
+class MariaDBReplicationNodeEditView(generic.ObjectEditView):
+    queryset = models.MariaDBReplicationNode.objects.all()
+    form = forms.MariaDBReplicationNodeForm
+
+
+class MariaDBReplicationNodeDeleteView(generic.ObjectDeleteView):
+    queryset = models.MariaDBReplicationNode.objects.all()
+
+
+class MariaDBReplicationNodeBulkDeleteView(generic.BulkDeleteView):
+    queryset = models.MariaDBReplicationNode.objects.all()
+    table = tables.MariaDBReplicationNodeTable

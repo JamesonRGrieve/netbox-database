@@ -57,4 +57,10 @@ urlpatterns = [
     *_routes("postgres-cluster-nodes", "postgresclusternode", models.PostgresClusterNode,
              views.PostgresClusterNodeListView, views.PostgresClusterNodeEditView, views.PostgresClusterNodeView,
              views.PostgresClusterNodeDeleteView, views.PostgresClusterNodeBulkDeleteView),
+    *_routes("mariadb-replications", "mariadbreplication", models.MariaDBReplication,
+             views.MariaDBReplicationListView, views.MariaDBReplicationEditView, views.MariaDBReplicationView,
+             views.MariaDBReplicationDeleteView, views.MariaDBReplicationBulkDeleteView),
+    *_routes("mariadb-replication-nodes", "mariadbreplicationnode", models.MariaDBReplicationNode,
+             views.MariaDBReplicationNodeListView, views.MariaDBReplicationNodeEditView, views.MariaDBReplicationNodeView,
+             views.MariaDBReplicationNodeDeleteView, views.MariaDBReplicationNodeBulkDeleteView),
 ]

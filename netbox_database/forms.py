@@ -6,14 +6,15 @@ from utilities.forms.fields import DynamicModelChoiceField, DynamicModelMultiple
 from utilities.forms.rendering import FieldSet
 from virtualization.models import VirtualMachine
 from .choices import (
-    DatabaseEngineChoices, GaleraSSTMethodChoices, MongoStorageEngineChoices,
+    DatabaseEngineChoices, GaleraSSTMethodChoices, MariaDBReplicationRoleChoices,
+    MariaDBReplicationSyncChoices, MariaDBReplicationTopologyChoices, MongoStorageEngineChoices,
     MosquittoPersistenceChoices, PostgresHAModeChoices, PostgresRoleChoices,
     RedisMaxmemoryPolicyChoices,
 )
 from .models import (
     Database, DatabaseGrant, DatabaseServer, DatabaseUser, GaleraCluster, GaleraNode,
-    MariaDBConfig, MongoDBConfig, MosquittoConfig, PostgresCluster, PostgresClusterNode,
-    PostgresConfig, RedisConfig,
+    MariaDBConfig, MariaDBReplication, MariaDBReplicationNode, MongoDBConfig, MosquittoConfig,
+    PostgresCluster, PostgresClusterNode, PostgresConfig, RedisConfig,
 )
 
 
@@ -176,6 +177,27 @@ class PostgresClusterNodeForm(NetBoxModelForm):
         fields = ["cluster", "server", "role", "replication_slot", "is_synchronous_standby", "tags"]
 
 
+class MariaDBReplicationForm(NetBoxModelForm):
+    fieldsets = (FieldSet("name", "topology", "sync_mode", "gtid", "ssl", name="MariaDB replication"),)
+
+    class Meta:
+        model = MariaDBReplication
+        fields = ["name", "topology", "sync_mode", "gtid", "ssl", "tags"]
+
+
+class MariaDBReplicationNodeForm(NetBoxModelForm):
+    replication = DynamicModelChoiceField(queryset=MariaDBReplication.objects.all())
+    server = DynamicModelChoiceField(queryset=DatabaseServer.objects.all())
+
+    fieldsets = (
+        FieldSet("replication", "server", "mariadb_server_id", "role", "read_only", name="MariaDB replication node"),
+    )
+
+    class Meta:
+        model = MariaDBReplicationNode
+        fields = ["replication", "server", "mariadb_server_id", "role", "read_only", "tags"]
+
+
 class DatabaseServerFilterForm(NetBoxModelFilterSetForm):
     model = DatabaseServer
     engine = forms.MultipleChoiceField(choices=DatabaseEngineChoices, required=False)
@@ -269,3 +291,21 @@ class PostgresClusterNodeFilterForm(NetBoxModelFilterSetForm):
     role = forms.MultipleChoiceField(choices=PostgresRoleChoices, required=False)
     is_synchronous_standby = forms.NullBooleanField(required=False)
     tag = TagFilterField(PostgresClusterNode)
+
+
+class MariaDBReplicationFilterForm(NetBoxModelFilterSetForm):
+    model = MariaDBReplication
+    topology = forms.MultipleChoiceField(choices=MariaDBReplicationTopologyChoices, required=False)
+    sync_mode = forms.MultipleChoiceField(choices=MariaDBReplicationSyncChoices, required=False)
+    gtid = forms.NullBooleanField(required=False)
+    ssl = forms.NullBooleanField(required=False)
+    tag = TagFilterField(MariaDBReplication)
+
+
+class MariaDBReplicationNodeFilterForm(NetBoxModelFilterSetForm):
+    model = MariaDBReplicationNode
+    replication_id = DynamicModelMultipleChoiceField(queryset=MariaDBReplication.objects.all(), required=False, label="Replication")
+    server_id = DynamicModelMultipleChoiceField(queryset=DatabaseServer.objects.all(), required=False, label="Server")
+    role = forms.MultipleChoiceField(choices=MariaDBReplicationRoleChoices, required=False)
+    read_only = forms.NullBooleanField(required=False)
+    tag = TagFilterField(MariaDBReplicationNode)

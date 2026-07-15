@@ -21,7 +21,8 @@ from django.db import models
 from django.urls import reverse
 from netbox.models import NetBoxModel
 from .choices import (
-    DatabaseEngineChoices, GaleraSSTMethodChoices, MongoStorageEngineChoices,
+    DatabaseEngineChoices, GaleraSSTMethodChoices, MariaDBReplicationRoleChoices,
+    MariaDBReplicationSyncChoices, MariaDBReplicationTopologyChoices, MongoStorageEngineChoices,
     MosquittoPersistenceChoices, PostgresHAModeChoices, PostgresRoleChoices,
     RedisMaxmemoryPolicyChoices,
 )
@@ -479,3 +480,73 @@ class PostgresClusterNode(NetBoxModel):
         super().clean()
         if self.server_id and self.server.engine != DatabaseEngineChoices.POSTGRESQL:
             raise ValidationError("A Postgres cluster node requires a PostgreSQL server engine.")
+
+
+class MariaDBReplication(NetBoxModel):
+    """A MariaDB/MySQL binlog-replication group — the database-native async/semi-sync replication
+    that ``netbox_services.HAMirror`` (service-level fail-over pairing) cannot express, and that
+    Galera (synchronous write-set) is not. ``topology`` is one-way (master-slave) or bidirectional
+    (master-master); ``sync_mode`` selects async vs semi-synchronous durability; ``gtid`` toggles
+    GTID-based positioning; ``ssl`` requires TLS on the replication channel."""
+
+    name = models.CharField(max_length=100, unique=True)
+    topology = models.CharField(max_length=16, choices=MariaDBReplicationTopologyChoices)
+    sync_mode = models.CharField(
+        max_length=16, choices=MariaDBReplicationSyncChoices, default=MariaDBReplicationSyncChoices.ASYNC
+    )
+    gtid = models.BooleanField(default=True, help_text="GTID-based replication (vs binlog file/position).")
+    ssl = models.BooleanField(default=False, help_text="Require TLS on the replication channel.")
+
+    class Meta:
+        ordering = ["name"]
+        verbose_name = "MariaDB Replication"
+
+    def __str__(self):
+        return self.name
+
+    def get_absolute_url(self):
+        return reverse("plugins:netbox_database:mariadbreplication", args=[self.pk])
+
+    def get_topology_color(self):
+        return MariaDBReplicationTopologyChoices.colors.get(self.topology)
+
+    def get_sync_mode_color(self):
+        return MariaDBReplicationSyncChoices.colors.get(self.sync_mode)
+
+
+class MariaDBReplicationNode(NetBoxModel):
+    """A server's membership in a MariaDB replication group. The server must be a MySQL-family
+    engine (:meth:`clean`). ``mariadb_server_id`` is the MariaDB ``server_id`` system variable
+    (unique within the group); ``role`` is the node's position (``co-primary`` for a writable
+    master-master node); ``read_only`` marks a replica that rejects direct client writes."""
+
+    replication = models.ForeignKey(MariaDBReplication, on_delete=models.CASCADE, related_name="nodes")
+    server = models.OneToOneField(
+        DatabaseServer, on_delete=models.CASCADE, related_name="mariadb_replication_node"
+    )
+    mariadb_server_id = models.PositiveIntegerField(help_text="MariaDB server_id (unique within the group).")
+    role = models.CharField(max_length=16, choices=MariaDBReplicationRoleChoices)
+    read_only = models.BooleanField(default=False, help_text="Replica rejects direct client writes.")
+
+    class Meta:
+        ordering = ["replication", "role", "server"]
+        verbose_name = "MariaDB Replication Node"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["replication", "mariadb_server_id"], name="unique_replication_mariadb_server_id"
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.replication.name}: {self.server.name} ({self.role})"
+
+    def get_absolute_url(self):
+        return reverse("plugins:netbox_database:mariadbreplicationnode", args=[self.pk])
+
+    def get_role_color(self):
+        return MariaDBReplicationRoleChoices.colors.get(self.role)
+
+    def clean(self):
+        super().clean()
+        if self.server_id and self.server.engine not in MYSQL_FAMILY_ENGINES:
+            raise ValidationError("A MariaDB replication node requires a MariaDB or MySQL server engine.")

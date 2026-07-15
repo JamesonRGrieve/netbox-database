@@ -3,18 +3,21 @@
 from django.test import TestCase
 from utilities.testing import create_test_device
 from netbox_database.choices import (
-    DatabaseEngineChoices, GaleraSSTMethodChoices, MongoStorageEngineChoices,
+    DatabaseEngineChoices, GaleraSSTMethodChoices, MariaDBReplicationRoleChoices,
+    MariaDBReplicationSyncChoices, MariaDBReplicationTopologyChoices, MongoStorageEngineChoices,
     MosquittoPersistenceChoices, PostgresHAModeChoices, PostgresRoleChoices,
     RedisMaxmemoryPolicyChoices,
 )
 from netbox_database.filtersets import (
     DatabaseFilterSet, DatabaseGrantFilterSet, DatabaseServerFilterSet, DatabaseUserFilterSet,
-    GaleraClusterFilterSet, GaleraNodeFilterSet, MongoDBConfigFilterSet, MosquittoConfigFilterSet,
+    GaleraClusterFilterSet, GaleraNodeFilterSet, MariaDBReplicationFilterSet,
+    MariaDBReplicationNodeFilterSet, MongoDBConfigFilterSet, MosquittoConfigFilterSet,
     PostgresClusterFilterSet, PostgresClusterNodeFilterSet, RedisConfigFilterSet,
 )
 from netbox_database.models import (
     Database, DatabaseGrant, DatabaseServer, DatabaseUser, GaleraCluster, GaleraNode,
-    MongoDBConfig, MosquittoConfig, PostgresCluster, PostgresClusterNode, RedisConfig,
+    MariaDBReplication, MariaDBReplicationNode, MongoDBConfig, MosquittoConfig, PostgresCluster,
+    PostgresClusterNode, RedisConfig,
 )
 
 
@@ -177,3 +180,38 @@ class PostgresClusterFilterSetTest(TestCase):
         qs = PostgresClusterNode.objects.all()
         self.assertEqual(PostgresClusterNodeFilterSet({"cluster_id": [self.c1.pk]}, qs).qs.count(), 2)
         self.assertEqual(PostgresClusterNodeFilterSet({"role": [PostgresRoleChoices.PRIMARY]}, qs).qs.count(), 1)
+
+
+class MariaDBReplicationFilterSetTest(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.r1 = MariaDBReplication.objects.create(
+            name="mrepl-a", topology=MariaDBReplicationTopologyChoices.MASTER_MASTER,
+            sync_mode=MariaDBReplicationSyncChoices.SEMI_SYNC,
+        )
+        cls.r2 = MariaDBReplication.objects.create(
+            name="mrepl-b", topology=MariaDBReplicationTopologyChoices.MASTER_SLAVE,
+        )
+        cls.s1 = _server("mrn1", DatabaseEngineChoices.MARIADB)
+        cls.s2 = _server("mrn2", DatabaseEngineChoices.MYSQL, "8.0")
+        MariaDBReplicationNode.objects.bulk_create([
+            MariaDBReplicationNode(replication=cls.r1, server=cls.s1, mariadb_server_id=1, role=MariaDBReplicationRoleChoices.CO_PRIMARY),
+            MariaDBReplicationNode(replication=cls.r1, server=cls.s2, mariadb_server_id=2, role=MariaDBReplicationRoleChoices.CO_PRIMARY),
+        ])
+
+    def test_group_topology_and_sync(self):
+        self.assertEqual(
+            MariaDBReplicationFilterSet({"topology": [MariaDBReplicationTopologyChoices.MASTER_MASTER]}, MariaDBReplication.objects.all()).qs.count(), 1
+        )
+        self.assertEqual(
+            MariaDBReplicationFilterSet({"sync_mode": [MariaDBReplicationSyncChoices.SEMI_SYNC]}, MariaDBReplication.objects.all()).qs.count(), 1
+        )
+
+    def test_group_search(self):
+        self.assertEqual(MariaDBReplicationFilterSet({"q": "mrepl-b"}, MariaDBReplication.objects.all()).qs.count(), 1)
+
+    def test_node_replication_scope_role_and_search(self):
+        qs = MariaDBReplicationNode.objects.all()
+        self.assertEqual(MariaDBReplicationNodeFilterSet({"replication_id": [self.r1.pk]}, qs).qs.count(), 2)
+        self.assertEqual(MariaDBReplicationNodeFilterSet({"role": [MariaDBReplicationRoleChoices.CO_PRIMARY]}, qs).qs.count(), 2)
+        self.assertEqual(MariaDBReplicationNodeFilterSet({"q": "mrn1"}, qs).qs.count(), 1)

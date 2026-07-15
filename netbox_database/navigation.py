@@ -38,6 +38,8 @@ menu = PluginMenu(
                 _item("galeranode", "Galera Nodes"),
                 _item("postgrescluster", "Postgres Clusters"),
                 _item("postgresclusternode", "Postgres Cluster Nodes"),
+                _item("mariadbreplication", "MariaDB Replications"),
+                _item("mariadbreplicationnode", "MariaDB Replication Nodes"),
             ),
         ),
     ),

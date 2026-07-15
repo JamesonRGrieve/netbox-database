@@ -6,7 +6,8 @@ from rest_framework import serializers
 from virtualization.api.serializers import VirtualMachineSerializer
 from ..models import (
     Database, DatabaseGrant, DatabaseServer, DatabaseUser, GaleraCluster, GaleraNode,
-    MariaDBConfig, MongoDBConfig, MosquittoConfig, PostgresCluster, PostgresClusterNode,
+    MariaDBConfig, MariaDBReplication, MariaDBReplicationNode, MongoDBConfig, MosquittoConfig,
+    PostgresCluster, PostgresClusterNode,
     PostgresConfig, RedisConfig,
 )
 
@@ -184,3 +185,29 @@ class PostgresClusterNodeSerializer(NetBoxModelSerializer):
             "is_synchronous_standby", "tags", "custom_fields", "created", "last_updated",
         ]
         brief_fields = ["id", "url", "display", "cluster", "server", "role"]
+
+
+class MariaDBReplicationSerializer(NetBoxModelSerializer):
+    url = serializers.HyperlinkedIdentityField(view_name="plugins-api:netbox_database-api:mariadbreplication-detail")
+
+    class Meta:
+        model = MariaDBReplication
+        fields = [
+            "id", "url", "display", "name", "topology", "sync_mode", "gtid", "ssl",
+            "tags", "custom_fields", "created", "last_updated",
+        ]
+        brief_fields = ["id", "url", "display", "name", "topology"]
+
+
+class MariaDBReplicationNodeSerializer(NetBoxModelSerializer):
+    url = serializers.HyperlinkedIdentityField(view_name="plugins-api:netbox_database-api:mariadbreplicationnode-detail")
+    replication = MariaDBReplicationSerializer(nested=True)
+    server = DatabaseServerSerializer(nested=True)
+
+    class Meta:
+        model = MariaDBReplicationNode
+        fields = [
+            "id", "url", "display", "replication", "server", "mariadb_server_id", "role", "read_only",
+            "tags", "custom_fields", "created", "last_updated",
+        ]
+        brief_fields = ["id", "url", "display", "replication", "server", "role"]

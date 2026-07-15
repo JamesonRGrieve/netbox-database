@@ -18,5 +18,7 @@ router.register("galera-clusters", views.GaleraClusterViewSet)
 router.register("galera-nodes", views.GaleraNodeViewSet)
 router.register("postgres-clusters", views.PostgresClusterViewSet)
 router.register("postgres-cluster-nodes", views.PostgresClusterNodeViewSet)
+router.register("mariadb-replications", views.MariaDBReplicationViewSet)
+router.register("mariadb-replication-nodes", views.MariaDBReplicationNodeViewSet)
 
 urlpatterns = router.urls
